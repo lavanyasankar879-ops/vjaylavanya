@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Special Reveal</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      /* Background setup matching your night/sunset theme */
+      background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), 
+                  url('images.jfif') no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+    }
+
+    .container {
+      position: relative;
+      width: 360px;
+      padding: 25px;
+      background: rgba(20, 20, 20, 0.75);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+      color: #ff6b6b;
+      letter-spacing: 1px;
+    }
+
+    /* Scratch Card Container */
+    .card-wrapper {
+      position: relative;
+      width: 300px;
+      height: 200px;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    /* Hidden Content under the scratch overlay */
+    .hidden-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #1e1e24;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+      z-index: 1;
+    }
+
+    .hidden-content h3 {
+      font-size: 1.1rem;
+      color: #ffd166;
+      margin-bottom: 8px;
+    }
+
+    .countdown {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #06d6a0;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .location-btn {
+      background-color: #ff4757;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.3s;
+    }
+
+    .location-btn:hover {
+      background-color: #ff6b81;
+    }
+
+    /* Canvas overlay that gets scratched off */
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Scratch to Reveal</h2>
+    
+    <div class="card-wrapper">
+      <!-- Hidden Details Revealed After Scratching -->
+      <div class="hidden-content">
+        <h3>Our Special Date ❤️</h3>
+        <div id="countdown" class="countdown">Loading countdown...</div>
+        <a id="locationLink" class="location-btn" target="_blank" href="#">📍 Get Live Location</a>
+      </div>
+
+      <!-- Scratch Overlay Canvas -->
+      <canvas id="scratchCanvas" width="300" height="200"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------------------------------
+    // 1. Target Date Setup for Live Countdown
+    // ----------------------------------------------------
+    // Set your target date here (YYYY, Month Index 0-11, Day, Hour, Minute)
+    const targetDate = new Date(2026, 11, 31, 20, 0, 0); 
+
+    function updateCountdown() {
+      const now = new Date().getTime();
+      const distance = targetDate.getTime() - now;
+
+      if (distance < 0) {
+        document.getElementById("countdown").innerText = "The moment is here!";
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      document.getElementById("countdown").innerText = 
+        `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    // ----------------------------------------------------
+    // 2. Live Location Handler
+    // ----------------------------------------------------
+    const locationBtn = document.getElementById('locationLink');
+    
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          locationBtn.href = `https://www.google.com/maps?q=${lat},${lon}`;
+        },
+        () => {
+          // Fallback if permission is denied or fails
+          locationBtn.href = "https://maps.google.com";
+        }
+      );
+    } else {
+      locationBtn.href = "https://maps.google.com";
+    }
+
+    // ----------------------------------------------------
+    // 3. Scratch Card Canvas Logic
+    // ----------------------------------------------------
+    const canvas = document.getElementById('scratchCanvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+
+    // Draw overlay layer
+    function initCanvas() {
+      ctx.fillStyle = '#888888'; // Silver scratch overlay color
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Overlay Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Scratch with mouse/finger!', canvas.width / 2, canvas.height / 2 + 5);
+    }
+
+    initCanvas();
+
+    // Helper to get touch/mouse coordinates relative to canvas
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function scratch(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      
+      const pos = getPos(e);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Event Listeners for Mouse and Touch
+    canvas.addEventListener('mousedown', (e) => { isDrawing = true; scratch(e); });
+    canvas.addEventListener('mousemove', scratch);
+    window.addEventListener('mouseup', () => { isDrawing = false; });
+
+    canvas.addEventListener('touchstart', (e) => { isDrawing = true; scratch(e); });
+    canvas.addEventListener('touchmove', scratch);
+    window.addEventListener('touchend', () => { isDrawing = false; });
+  </script>
+
+</body>
+</html>
